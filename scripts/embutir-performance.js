@@ -89,6 +89,7 @@ function htmlDosDados() {
   const faixa = ok ? 'Critério atendido' : 'Critério não atendido';
   return `<style id="dados-performance-estilo">
   #dados-performance { margin: 8px 0 16px; border: 1px solid var(--color-border-default, #d0d7de); border-radius: 6px; background: var(--color-canvas-overlay, var(--color-canvas-default, #fff)); color: var(--color-fg-default, #1c1c1c); font: 14px/1.45 -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif; }
+  #dados-performance[hidden] { display: none !important; }
   #dados-performance summary { padding: 10px 12px; font-weight: 600; }
   #dados-performance .corpo { padding: 0 12px 12px; }
   #dados-performance .faixa { padding: 8px 10px; margin: 0 0 10px; font-weight: 700; border-radius: 4px; }
@@ -100,7 +101,7 @@ function htmlDosDados() {
   #dados-performance th, #dados-performance td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--color-border-muted, #d8dee4); vertical-align: top; }
   #dados-performance th { width: 34%; }
 </style>
-<details id="dados-performance">
+<details id="dados-performance" hidden>
   <summary>Dados do teste de Performance</summary>
   <div class="corpo">
     <p class="faixa ${ok ? 'ok' : 'fail'}">${faixa}</p>
@@ -110,16 +111,36 @@ function htmlDosDados() {
 </details>
 <script id="dados-performance-script">
   const blocoPerformance = document.getElementById('dados-performance');
+  const tituloPerformance = 'Teste Performance - fluxo/compra_passagem.spec.js';
+  function paginaInicialDoRelatorio() {
+    const params = new URLSearchParams(window.location.hash.replace(/^#\\??/, ''));
+    return !params.has('testId');
+  }
   function posicionarDadosPerformance() {
     if (!blocoPerformance) return;
+    const raiz = document.getElementById('root');
+    if (!paginaInicialDoRelatorio()) {
+      blocoPerformance.hidden = true;
+      if (raiz && blocoPerformance.previousElementSibling !== raiz) {
+        raiz.insertAdjacentElement('afterend', blocoPerformance);
+      }
+      return;
+    }
     const cabecalho = [...document.querySelectorAll('.chip-header-allow-selection')]
-      .find((item) => item.textContent.trim() === 'Teste Performance - fluxo/compra_passagem.spec.js');
+      .find((item) => item.textContent.trim() === tituloPerformance);
     const grupo = cabecalho && cabecalho.closest('.chip');
-    if (!grupo || grupo.nextElementSibling === blocoPerformance) return;
-    grupo.insertAdjacentElement('afterend', blocoPerformance);
+    if (!grupo) {
+      blocoPerformance.hidden = true;
+      return;
+    }
+    blocoPerformance.hidden = false;
+    if (grupo.nextElementSibling !== blocoPerformance) {
+      grupo.insertAdjacentElement('afterend', blocoPerformance);
+    }
   }
   const observadorPerformance = new MutationObserver(posicionarDadosPerformance);
   observadorPerformance.observe(document.getElementById('root'), { childList: true, subtree: true });
+  window.addEventListener('hashchange', posicionarDadosPerformance);
   posicionarDadosPerformance();
 </script>`;
 }
