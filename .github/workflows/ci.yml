@@ -1,0 +1,103 @@
+name: Testes
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  testes:
+    name: Funcional e performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      relatorio: ${{ steps.relatorio.outputs.existe }}
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar o k6
+        run: |
+          curl -sSL -o k6.tar.gz https://github.com/grafana/k6/releases/download/v2.4.0/k6-v2.4.0-linux-amd64.tar.gz
+          tar -xzf k6.tar.gz
+          sudo mv k6-v2.4.0-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar o Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Executar os testes
+        run: npm test
+
+      - name: Publicar a conclusao da performance
+        if: always()
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "### Relatório" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "O HTML abre em https://albuquerquetec.github.io/Desafio-NTConsult/ quando a publicação terminar." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f performance/resultados/resumo.md ]; then
+            cat performance/resultados/resumo.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Conferir o relatório funcional
+        id: relatorio
+        if: always()
+        run: |
+          if [ -f playwright-report/index.html ]; then
+            echo "existe=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enviar o relatório para a página
+        if: always() && steps.relatorio.outputs.existe == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report
+
+      - name: Publicar o relatório funcional
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-playwright
+          path: playwright-report/
+          retention-days: 14
+
+  publicar:
+    name: Publicar o relatório
+    needs: testes
+    if: always() && needs.testes.outputs.relatorio == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: relatorio-html
+      cancel-in-progress: false
+    steps:
+      - name: Publicar a página do relatório
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Informar o endereço
+        run: |
+          echo "### Relatório" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Abra o HTML desta execução: ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"

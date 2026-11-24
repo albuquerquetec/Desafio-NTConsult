@@ -1,0 +1,18 @@
+{
+  "name": "desafio-ntconsult",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Desafio técnico de QA da NTConsult: blog do Agi, Dog API e performance do BlazeDemo.",
+  "scripts": {
+    "test": "node scripts/testar.js",
+    "test:ui": "playwright test --project=\"Teste UI\"",
+    "test:api": "playwright test --project=\"Teste API\"",
+    "test:fluxo": "playwright test --project=\"Teste Performance\"",
+    "test:performance": "node performance/executar.js",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}
